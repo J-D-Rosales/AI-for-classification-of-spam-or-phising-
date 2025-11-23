@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Detector de SPAM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/static/styles.css" rel="stylesheet">
+</head>
+<body>
+  <main class="container">
+    <h1>Detector de SPAM</h1>
+    <p class="sub">Pega el contenido del correo y presiona “Clasificar”.</p>
+
+    <form id="form" class="card" onsubmit="return false;">
+      <label for="text" class="label">Contenido del correo</label>
+      <textarea id="text" placeholder="Hello, you've won a prize! Click the link..." required></textarea>
+
+      <div class="actions">
+        <button id="btn" type="submit">Clasificar</button>
+        <span id="loading" class="muted" style="display:none;">Clasificando…</span>
+      </div>
+    </form>
+
+    <section id="result" class="card" style="display:none;">
+      <h2>Resultado</h2>
+      <p class="big"><span id="verdict">—</span></p>
+      <p>Probabilidad de spam: <strong id="pct">0%</strong></p>
+      <p class="muted">Umbral: <span id="thr">—</span></p>
+    </section>
+
+    <section id="error" class="card error" style="display:none;"></section>
+  </main>
+
+  <script>
+    const form = document.getElementById('form');
+    const btn = document.getElementById('btn');
+    const loading = document.getElementById('loading');
+    const resultBox = document.getElementById('result');
+    const errorBox = document.getElementById('error');
+    const verdict = document.getElementById('verdict');
+    const pct = document.getElementById('pct');
+    const thr = document.getElementById('thr');
+
+    form.addEventListener('submit', async () => {
+      const text = document.getElementById('text').value.trim();
+      resultBox.style.display = 'none';
+      errorBox.style.display = 'none';
+      if (!text) return;
+
+      btn.disabled = true; loading.style.display = 'inline';
+      try {
+        const resp = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Error');
+
+        const prob = Number(data.spam_probability || 0);
+        verdict.textContent = data.is_spam ? 'SPAM' : 'NO SPAM';
+        pct.textContent = (prob * 100).toFixed(2) + '%';
+        thr.textContent = String(data.threshold);
+        resultBox.style.display = 'block';
+      } catch (e) {
+        errorBox.textContent = e.message || 'Error de red o servidor';
+        errorBox.style.display = 'block';
+      } finally {
+        btn.disabled = false; loading.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
